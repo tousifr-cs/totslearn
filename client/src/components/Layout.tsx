@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Baby, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { GraduationCap, LogOut, Settings, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -13,7 +13,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/20">
-              <Baby className="w-6 h-6 text-white" />
+              <GraduationCap className="w-6 h-6 text-white" />
             </div>
             <span className="font-display text-2xl font-bold tracking-wide">TotsLearn</span>
           </Link>

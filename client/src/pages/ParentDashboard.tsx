@@ -2,7 +2,7 @@ import { Layout } from "@/components/Layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useChildren, useCreateChild } from "@/hooks/use-children";
 import { Redirect, Link } from "wouter";
-import { Plus, Settings, PlayCircle, Clock, Star } from "lucide-react";
+import { Plus, Settings, PlayCircle, Clock, Star, Users } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -162,7 +162,7 @@ export default function ParentDashboard() {
         {children?.length === 0 ? (
           <div className="text-center py-24 bg-card rounded-3xl border border-dashed border-border shadow-sm">
             <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <Baby className="w-10 h-10" />
+              <Users className="w-10 h-10" />
             </div>
             <h3 className="text-xl font-bold text-foreground">No children added yet</h3>
             <p className="text-muted-foreground mt-2 mb-6">Create a profile to start tracking their learning journey.</p>

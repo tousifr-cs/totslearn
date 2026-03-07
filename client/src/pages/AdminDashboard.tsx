@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@shared/routes";
-import { Plus, BookOpen, Video, Gamepad2, PenTool } from "lucide-react";
+import { Plus, BookOpen, Video, Gamepad2, PenTool, Play } from "lucide-react";
 
 import {
   Dialog,
