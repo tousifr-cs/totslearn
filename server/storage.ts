@@ -1,38 +1,104 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
+import { 
+  children, 
+  modules, 
+  progress, 
+  type Child, 
+  type InsertChild, 
+  type Module, 
+  type InsertModule, 
+  type Progress,
+  type User 
+} from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Children
+  getChildren(parentId: string): Promise<Child[]>;
+  getChild(id: number): Promise<Child | undefined>;
+  createChild(parentId: string, child: Omit<InsertChild, "parentId">): Promise<Child>;
+  updateChild(id: number, updates: Partial<InsertChild>): Promise<Child>;
+
+  // Modules
+  getModules(): Promise<Module[]>;
+  getModule(id: number): Promise<Module | undefined>;
+  createModule(module: InsertModule): Promise<Module>;
+
+  // Progress
+  recordProgress(childId: number, moduleId: number, score?: number): Promise<Progress>;
+  getRecentProgress(childId: number): Promise<Progress[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getChildren(parentId: string): Promise<Child[]> {
+    return await db.select().from(children).where(eq(children.parentId, parentId));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getChild(id: number): Promise<Child | undefined> {
+    const [child] = await db.select().from(children).where(eq(children.id, id));
+    return child;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createChild(parentId: string, child: Omit<InsertChild, "parentId">): Promise<Child> {
+    const [newChild] = await db
+      .insert(children)
+      .values({ ...child, parentId })
+      .returning();
+    return newChild;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateChild(id: number, updates: Partial<InsertChild>): Promise<Child> {
+    const [updatedChild] = await db
+      .update(children)
+      .set(updates)
+      .where(eq(children.id, id))
+      .returning();
+    return updatedChild;
+  }
+
+  async getModules(): Promise<Module[]> {
+    return await db.select().from(modules);
+  }
+
+  async getModule(id: number): Promise<Module | undefined> {
+    const [mod] = await db.select().from(modules).where(eq(modules.id, id));
+    return mod;
+  }
+
+  async createModule(mod: InsertModule): Promise<Module> {
+    const [newModule] = await db.insert(modules).values(mod).returning();
+    return newModule;
+  }
+
+  async recordProgress(childId: number, moduleId: number, score?: number): Promise<Progress> {
+    const [newProgress] = await db
+      .insert(progress)
+      .values({
+        childId,
+        moduleId,
+        completed: true,
+        score: score || 0,
+      })
+      .returning();
+
+    // Give some points to the child's learning score
+    const pointsEarned = 10 + (score || 0);
+    const child = await this.getChild(childId);
+    if (child) {
+      await this.updateChild(childId, { learningScore: child.learningScore + pointsEarned });
+    }
+
+    return newProgress;
+  }
+
+  async getRecentProgress(childId: number): Promise<Progress[]> {
+    return await db
+      .select()
+      .from(progress)
+      .where(eq(progress.childId, childId))
+      .orderBy(desc(progress.completedAt))
+      .limit(10);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
