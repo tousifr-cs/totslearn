@@ -189,29 +189,29 @@ async function seedDatabase() {
   if (existingModules.length === 0) {
     await storage.createModule({
       title: "Learn the Alphabet",
-      description: "A fun song and dance video to learn your ABCs.",
+      description: "Sing along and learn your ABCs with colorful letters!",
       type: "video",
       difficultyLevel: 1,
-      contentUrl: "https://www.youtube.com/watch?v=75p-N9YKqNo" // Example
+      contentUrl: "https://www.youtube.com/embed/75p-N9YKqNo"
     });
     
     await storage.createModule({
       title: "Shape Matcher",
-      description: "Drag and drop the shapes into their matching holes.",
+      description: "Drag the shapes to their matching friends!",
       type: "game",
       difficultyLevel: 1,
     });
     
     await storage.createModule({
       title: "The Hungry Caterpillar",
-      description: "Interactive story about a very hungry caterpillar.",
+      description: "Follow the caterpillar on his tasty journey.",
       type: "story",
       difficultyLevel: 2,
     });
 
     await storage.createModule({
       title: "Draw a Cat",
-      description: "Follow along to draw your own colorful cat!",
+      description: "Let's draw a fluffy cat together step-by-step!",
       type: "drawing",
       difficultyLevel: 1,
     });
