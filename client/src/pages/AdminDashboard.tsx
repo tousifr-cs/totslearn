@@ -2,12 +2,13 @@ import { Layout } from "@/components/Layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useModules, useCreateModule } from "@/hooks/use-modules";
 import { Redirect } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@shared/routes";
-import { Plus, BookOpen, Video, Gamepad2, PenTool, Play } from "lucide-react";
+import { Plus, BookOpen, Video, Gamepad2, PenTool, Play, Lock, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   Dialog,
@@ -21,11 +22,47 @@ const moduleSchema = api.modules.create.input.extend({
   difficultyLevel: z.coerce.number().min(1).max(5)
 });
 
+const ADMIN_PASSWORD = "12345";
+
 export default function AdminDashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: modules, isLoading: modulesLoading } = useModules();
   const createModule = useCreateModule();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pinDigits, setPinDigits] = useState<string[]>(["", "", "", "", ""]);
+  const [pinError, setPinError] = useState(false);
+  const [shaking, setShaking] = useState(false);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handlePinDigit = (val: string, idx: number) => {
+    if (!/^\d?$/.test(val)) return;
+    const next = [...pinDigits];
+    next[idx] = val;
+    setPinDigits(next);
+    setPinError(false);
+    if (val && idx < 4) inputRefs.current[idx + 1]?.focus();
+    if (next.every(d => d !== "")) {
+      const entered = next.join("");
+      if (entered === ADMIN_PASSWORD) {
+        setIsUnlocked(true);
+      } else {
+        setShaking(true);
+        setPinError(true);
+        setTimeout(() => {
+          setPinDigits(["", "", "", "", ""]);
+          setShaking(false);
+          inputRefs.current[0]?.focus();
+        }, 700);
+      }
+    }
+  };
+
+  const handlePinKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === "Backspace" && !pinDigits[idx] && idx > 0) {
+      inputRefs.current[idx - 1]?.focus();
+    }
+  };
 
   const form = useForm<z.infer<typeof moduleSchema>>({
     resolver: zodResolver(moduleSchema),
@@ -52,6 +89,70 @@ export default function AdminDashboard() {
     return <Redirect to="/api/login" />;
   }
 
+  if (!isUnlocked) {
+    return (
+      <Layout>
+        <div className="flex min-h-[80vh] items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-2xl p-8 sm:p-12 flex flex-col items-center gap-6 max-w-sm w-full"
+          >
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="w-10 h-10 text-primary" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-1">Admin Access</h2>
+              <p className="text-muted-foreground text-sm">Enter the 5-digit PIN to continue</p>
+            </div>
+
+            <motion.div
+              animate={shaking ? { x: [-10, 10, -10, 10, -6, 6, 0] } : {}}
+              transition={{ duration: 0.5 }}
+              className="flex gap-3"
+            >
+              {pinDigits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => { inputRefs.current[i] = el; }}
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handlePinDigit(e.target.value, i)}
+                  onKeyDown={e => handlePinKeyDown(e, i)}
+                  autoFocus={i === 0}
+                  data-testid={`input-pin-${i}`}
+                  className={`w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 outline-none transition-all
+                    ${pinError ? "border-red-400 bg-red-50 text-red-500" : digit ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-foreground"}
+                    focus:border-primary focus:ring-2 focus:ring-primary/20
+                  `}
+                />
+              ))}
+            </motion.div>
+
+            <AnimatePresence>
+              {pinError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-red-500 text-sm font-semibold"
+                >
+                  Incorrect PIN. Please try again.
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <p className="text-xs text-muted-foreground text-center">
+              This area is restricted to administrators only.
+            </p>
+          </motion.div>
+        </div>
+      </Layout>
+    );
+  }
+
   const onSubmit = (data: z.infer<typeof moduleSchema>) => {
     createModule.mutate(data, {
       onSuccess: () => {
@@ -76,11 +177,22 @@ export default function AdminDashboard() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Content Administration</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <ShieldCheck className="w-7 h-7 text-primary" />
+              <h1 className="font-display text-3xl font-bold text-foreground">Content Administration</h1>
+            </div>
             <p className="text-muted-foreground mt-1">Manage global learning modules available to all children.</p>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setIsUnlocked(false); setPinDigits(["", "", "", "", ""]); setPinError(false); }}
+              className="px-4 py-2.5 rounded-xl font-semibold bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all flex items-center gap-2 border border-border"
+              data-testid="button-lock-admin"
+            >
+              <Lock className="w-4 h-4" /> Lock
+            </button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <button className="px-5 py-2.5 rounded-xl font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all flex items-center gap-2">
                 <Plus className="w-5 h-5" /> New Module
@@ -149,6 +261,7 @@ export default function AdminDashboard() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
