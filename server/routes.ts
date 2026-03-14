@@ -10,7 +10,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  // Set up authentication
   await setupAuth(app);
   registerAuthRoutes(app);
 
@@ -45,11 +44,10 @@ export async function registerRoutes(
   app.get(api.children.get.path, isAuthenticated, async (req: any, res) => {
     const userId = req.user.claims.sub;
     try {
-      const child = await storage.getChild(Number(req.params.id));
+      const child = await storage.getChild(req.params.id);
       if (!child) {
         return res.status(404).json({ message: 'Child not found' });
       }
-      // Ensure the child belongs to the logged-in parent
       if (child.parentId !== userId) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
@@ -62,7 +60,7 @@ export async function registerRoutes(
   app.put(api.children.update.path, isAuthenticated, async (req: any, res) => {
     const userId = req.user.claims.sub;
     try {
-      const child = await storage.getChild(Number(req.params.id));
+      const child = await storage.getChild(req.params.id);
       if (!child) {
         return res.status(404).json({ message: 'Child not found' });
       }
@@ -71,7 +69,7 @@ export async function registerRoutes(
       }
 
       const input = api.children.update.input.parse(req.body);
-      const updatedChild = await storage.updateChild(Number(req.params.id), input);
+      const updatedChild = await storage.updateChild(req.params.id, input);
       res.json(updatedChild);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -87,7 +85,7 @@ export async function registerRoutes(
   app.get(api.children.getDashboard.path, isAuthenticated, async (req: any, res) => {
     const userId = req.user.claims.sub;
     try {
-      const childId = Number(req.params.id);
+      const childId = req.params.id;
       const child = await storage.getChild(childId);
       
       if (!child) {
@@ -98,12 +96,12 @@ export async function registerRoutes(
       }
 
       const recentProgress = await storage.getRecentProgress(childId);
-      const recommendedModules = await storage.getModules(); // Simple mock for now
+      const recommendedModules = await storage.getModules();
 
       res.json({
         child,
         recentProgress,
-        activeChallenges: [], // Future enhancement
+        activeChallenges: [],
         recommendedModules: recommendedModules.slice(0, 4),
       });
     } catch (error) {
@@ -124,7 +122,7 @@ export async function registerRoutes(
 
   app.get(api.modules.get.path, async (req, res) => {
     try {
-      const mod = await storage.getModule(Number(req.params.id));
+      const mod = await storage.getModule(req.params.id);
       if (!mod) {
         return res.status(404).json({ message: 'Module not found' });
       }
@@ -135,7 +133,6 @@ export async function registerRoutes(
   });
 
   app.post(api.modules.create.path, isAuthenticated, async (req, res) => {
-    // Ideally we would check for an admin role here. 
     try {
       const input = api.modules.create.input.parse(req.body);
       const mod = await storage.createModule(input);
@@ -158,7 +155,6 @@ export async function registerRoutes(
       try {
         const input = api.progress.record.input.parse(req.body);
         
-        // Ensure parent owns the child
         const child = await storage.getChild(input.childId);
         if (!child || child.parentId !== userId) {
             return res.status(401).json({ message: "Unauthorized" });
@@ -178,7 +174,6 @@ export async function registerRoutes(
   })
 
 
-  // Seed initial data if needed
   seedDatabase().catch(console.error);
 
   return httpServer;

@@ -1,25 +1,8 @@
 import { Layout } from "@/components/Layout";
-import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
 import { Play, Sparkles, Shield, Trophy } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Landing() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex h-[60vh] items-center justify-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (isAuthenticated) {
-    return <Redirect to="/" />;
-  }
-
   return (
     <Layout>
       <div className="flex flex-col lg:flex-row items-center gap-12 py-12 lg:py-24">
@@ -35,12 +18,12 @@ export default function Landing() {
             A safe, ad-free environment where your little ones can explore, create, and grow through interactive modules designed by early education experts.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <a 
-              href="/api/login" 
+            <Link 
+              href="/dashboard" 
               className="px-8 py-4 rounded-full font-bold text-lg bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:shadow-2xl hover:bg-primary/90 hover:-translate-y-1 transition-all text-center flex items-center justify-center gap-2"
             >
               Get Started Free <Play className="w-5 h-5 fill-current" />
-            </a>
+            </Link>
           </div>
         </div>
 

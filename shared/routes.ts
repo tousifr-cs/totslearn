@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { insertChildSchema, insertModuleSchema, children, modules, progress, users } from './schema';
+import { insertChildSchema, insertModuleSchema } from './schema';
+import type { Child, Module, Progress, User } from './schema';
 
 export const errorSchemas = {
   validation: z.object({ message: z.string(), field: z.string().optional() }),
@@ -13,7 +14,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/auth/user' as const,
       responses: {
-        200: z.custom<typeof users.$inferSelect>(),
+        200: z.custom<User>(),
         401: errorSchemas.unauthorized,
       }
     }
@@ -23,7 +24,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/children' as const,
       responses: {
-        200: z.array(z.custom<typeof children.$inferSelect>()),
+        200: z.array(z.custom<Child>()),
         401: errorSchemas.unauthorized,
       },
     },
@@ -31,7 +32,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/children/:id' as const,
       responses: {
-        200: z.custom<typeof children.$inferSelect>(),
+        200: z.custom<Child>(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
       },
@@ -41,7 +42,7 @@ export const api = {
       path: '/api/children' as const,
       input: insertChildSchema.omit({ parentId: true }),
       responses: {
-        201: z.custom<typeof children.$inferSelect>(),
+        201: z.custom<Child>(),
         400: errorSchemas.validation,
         401: errorSchemas.unauthorized,
       },
@@ -51,24 +52,24 @@ export const api = {
       path: '/api/children/:id' as const,
       input: insertChildSchema.partial(),
       responses: {
-        200: z.custom<typeof children.$inferSelect>(),
+        200: z.custom<Child>(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
       },
     },
     getDashboard: {
-        method: 'GET' as const,
-        path: '/api/children/:id/dashboard' as const,
-        responses: {
-            200: z.object({
-                child: z.custom<typeof children.$inferSelect>(),
-                recentProgress: z.array(z.any()),
-                activeChallenges: z.array(z.any()),
-                recommendedModules: z.array(z.custom<typeof modules.$inferSelect>()),
-            }),
-            404: errorSchemas.notFound,
-            401: errorSchemas.unauthorized,
-        }
+      method: 'GET' as const,
+      path: '/api/children/:id/dashboard' as const,
+      responses: {
+        200: z.object({
+          child: z.custom<Child>(),
+          recentProgress: z.array(z.any()),
+          activeChallenges: z.array(z.any()),
+          recommendedModules: z.array(z.custom<Module>()),
+        }),
+        404: errorSchemas.notFound,
+        401: errorSchemas.unauthorized,
+      }
     }
   },
   modules: {
@@ -76,14 +77,14 @@ export const api = {
       method: 'GET' as const,
       path: '/api/modules' as const,
       responses: {
-        200: z.array(z.custom<typeof modules.$inferSelect>()),
+        200: z.array(z.custom<Module>()),
       },
     },
     get: {
       method: 'GET' as const,
       path: '/api/modules/:id' as const,
       responses: {
-        200: z.custom<typeof modules.$inferSelect>(),
+        200: z.custom<Module>(),
         404: errorSchemas.notFound,
       },
     },
@@ -92,7 +93,7 @@ export const api = {
       path: '/api/modules' as const,
       input: insertModuleSchema,
       responses: {
-        201: z.custom<typeof modules.$inferSelect>(),
+        201: z.custom<Module>(),
         401: errorSchemas.unauthorized,
       }
     }
@@ -101,9 +102,9 @@ export const api = {
     record: {
       method: 'POST' as const,
       path: '/api/progress' as const,
-      input: z.object({ childId: z.coerce.number(), moduleId: z.coerce.number(), score: z.coerce.number().optional() }),
+      input: z.object({ childId: z.string(), moduleId: z.string(), score: z.coerce.number().optional() }),
       responses: {
-        200: z.custom<typeof progress.$inferSelect>(),
+        200: z.custom<Progress>(),
         400: errorSchemas.validation,
       },
     }

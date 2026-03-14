@@ -29,10 +29,10 @@ function getGameComponent(mod: Module, onComplete: () => void) {
 
 export default function ChildDashboard() {
   const { id } = useParams();
-  const { data: dashboard, isLoading } = useChildDashboard(Number(id));
+  const { data: dashboard, isLoading } = useChildDashboard(id!);
   const recordProgress = useRecordProgress();
   const [activeModule, setActiveModule] = useState<Module | null>(null);
-  const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   if (isLoading) {
     return (
@@ -50,7 +50,7 @@ export default function ChildDashboard() {
     return (
       <div className="min-h-screen bg-[#F0F7FF] flex flex-col items-center justify-center gap-6">
         <h1 className="font-display text-4xl text-foreground">Oops! Profile not found.</h1>
-        <Link href="/" className="px-6 py-3 bg-primary text-white rounded-full font-bold">Go Home</Link>
+        <Link href="/dashboard" className="px-6 py-3 bg-primary text-white rounded-full font-bold">Go Home</Link>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export default function ChildDashboard() {
 
       {/* Header */}
       <header className="p-4 sm:p-8 flex items-center justify-between relative z-10">
-        <Link href="/" className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform" data-testid="button-home">
+        <Link href="/dashboard" className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform" data-testid="button-home">
           <Home className="w-7 h-7" />
         </Link>
         <motion.div

@@ -1,7 +1,5 @@
 import { Layout } from "@/components/Layout";
-import { useAuth } from "@/hooks/use-auth";
 import { useModules, useCreateModule } from "@/hooks/use-modules";
-import { Redirect } from "wouter";
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,7 +23,6 @@ const moduleSchema = api.modules.create.input.extend({
 const ADMIN_PASSWORD = "12345";
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: modules, isLoading: modulesLoading } = useModules();
   const createModule = useCreateModule();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -75,7 +72,7 @@ export default function AdminDashboard() {
     }
   });
 
-  if (authLoading || modulesLoading) {
+  if (modulesLoading) {
     return (
       <Layout>
         <div className="flex h-[60vh] items-center justify-center">
@@ -83,10 +80,6 @@ export default function AdminDashboard() {
         </div>
       </Layout>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect to="/api/login" />;
   }
 
   if (!isUnlocked) {

@@ -22,7 +22,7 @@ export function useChildren() {
   });
 }
 
-export function useChild(id: number) {
+export function useChild(id: string) {
   return useQuery({
     queryKey: [api.children.get.path, id],
     queryFn: async () => {
@@ -36,7 +36,7 @@ export function useChild(id: number) {
   });
 }
 
-export function useChildDashboard(id: number) {
+export function useChildDashboard(id: string) {
   return useQuery({
     queryKey: [api.children.getDashboard.path, id],
     queryFn: async () => {
@@ -78,7 +78,7 @@ export function useCreateChild() {
 export function useUpdateChild() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: number } & z.infer<typeof api.children.update.input>) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & z.infer<typeof api.children.update.input>) => {
       const url = buildUrl(api.children.update.path, { id });
       const res = await fetch(url, {
         method: api.children.update.method,

@@ -1,70 +1,86 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./models/auth";
 
-export * from "./models/auth";
+export type { User, UpsertUser } from "./models/auth";
 
-export const admins = pgTable("admins", {
-  userId: varchar("user_id").references(() => users.id).primaryKey(),
+// --- Interfaces ---
+
+export interface Child {
+  id: string;
+  parentId: string;
+  name: string;
+  age: number;
+  level: string;
+  learningScore: number;
+  screenTimeLimit: number;
+  avatarColor: string;
+}
+
+export interface Module {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  difficultyLevel: number;
+  contentUrl: string | null;
+}
+
+export interface Progress {
+  id: string;
+  childId: string;
+  moduleId: string;
+  completed: boolean;
+  score: number | null;
+  completedAt: Date | null;
+}
+
+export interface DailyChallenge {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+}
+
+export interface ChildChallenge {
+  id: string;
+  childId: string;
+  challengeId: string;
+  completed: boolean;
+  completedAt: Date | null;
+}
+
+// --- Zod input schemas ---
+
+export const insertChildSchema = z.object({
+  parentId: z.string().optional(),
+  name: z.string().min(1, "Name is required"),
+  age: z.coerce.number().min(1).max(18),
+  level: z.string().default("beginner"),
+  screenTimeLimit: z.coerce.number().default(60),
+  avatarColor: z.string().default("blue"),
 });
 
-export const children = pgTable("children", {
-  id: serial("id").primaryKey(),
-  parentId: varchar("parent_id").references(() => users.id).notNull(),
-  name: text("name").notNull(),
-  age: integer("age").notNull(),
-  level: text("level").notNull().default('beginner'),
-  learningScore: integer("learning_score").notNull().default(0),
-  screenTimeLimit: integer("screen_time_limit").notNull().default(60), // in minutes
-  avatarColor: text("avatar_color").notNull().default('blue'),
+export const insertModuleSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  type: z.string().min(1),
+  difficultyLevel: z.coerce.number().default(1),
+  contentUrl: z.string().nullable().optional(),
 });
 
-export const modules = pgTable("modules", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  type: text("type").notNull(), // 'video', 'game', 'story', 'drawing'
-  difficultyLevel: integer("difficulty_level").notNull().default(1),
-  contentUrl: text("content_url"), // Optional URL to external content
+export const insertProgressSchema = z.object({
+  childId: z.string(),
+  moduleId: z.string(),
+  completed: z.boolean().default(false),
+  score: z.coerce.number().optional(),
 });
 
-export const progress = pgTable("progress", {
-  id: serial("id").primaryKey(),
-  childId: integer("child_id").references(() => children.id).notNull(),
-  moduleId: integer("module_id").references(() => modules.id).notNull(),
-  completed: boolean("completed").notNull().default(false),
-  score: integer("score").default(0),
-  completedAt: timestamp("completed_at").defaultNow(),
+export const insertDailyChallengeSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  points: z.coerce.number().default(10),
 });
 
-export const dailyChallenges = pgTable("daily_challenges", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  points: integer("points").notNull().default(10),
-});
+// --- Inferred input types ---
 
-export const childChallenges = pgTable("child_challenges", {
-  id: serial("id").primaryKey(),
-  childId: integer("child_id").references(() => children.id).notNull(),
-  challengeId: integer("challenge_id").references(() => dailyChallenges.id).notNull(),
-  completed: boolean("completed").notNull().default(false),
-  completedAt: timestamp("completed_at"),
-});
-
-// Zod schemas
-export const insertChildSchema = createInsertSchema(children).omit({ id: true, learningScore: true });
-export const insertModuleSchema = createInsertSchema(modules).omit({ id: true });
-export const insertProgressSchema = createInsertSchema(progress).omit({ id: true, completedAt: true });
-export const insertDailyChallengeSchema = createInsertSchema(dailyChallenges).omit({ id: true });
-
-// Types
-export type Child = typeof children.$inferSelect;
 export type InsertChild = z.infer<typeof insertChildSchema>;
-export type Module = typeof modules.$inferSelect;
 export type InsertModule = z.infer<typeof insertModuleSchema>;
-export type Progress = typeof progress.$inferSelect;
-export type DailyChallenge = typeof dailyChallenges.$inferSelect;
-export type ChildChallenge = typeof childChallenges.$inferSelect;

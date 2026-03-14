@@ -1,7 +1,6 @@
 import { Layout } from "@/components/Layout";
-import { useAuth } from "@/hooks/use-auth";
 import { useChildren, useCreateChild } from "@/hooks/use-children";
-import { Redirect, Link } from "wouter";
+import { Link } from "wouter";
 import { Plus, Settings, PlayCircle, Clock, Star, Users } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -23,7 +22,6 @@ const childFormSchema = api.children.create.input.extend({
 });
 
 export default function ParentDashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: children, isLoading: childrenLoading } = useChildren();
   const createChild = useCreateChild();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -39,7 +37,7 @@ export default function ParentDashboard() {
     }
   });
 
-  if (authLoading || childrenLoading) {
+  if (childrenLoading) {
     return (
       <Layout>
         <div className="flex h-[60vh] items-center justify-center">
@@ -47,10 +45,6 @@ export default function ParentDashboard() {
         </div>
       </Layout>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect to="/api/login" />;
   }
 
   const onSubmit = (data: z.infer<typeof childFormSchema>) => {

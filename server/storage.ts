@@ -1,104 +1,121 @@
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
-import { 
-  children, 
-  modules, 
-  progress, 
-  type Child, 
-  type InsertChild, 
-  type Module, 
-  type InsertModule, 
-  type Progress,
-  type User 
+import { ChildModel, ModuleModel, ProgressModel } from "./models";
+import type {
+  Child,
+  InsertChild,
+  Module,
+  InsertModule,
+  Progress,
 } from "@shared/schema";
 
 export interface IStorage {
-  // Children
   getChildren(parentId: string): Promise<Child[]>;
-  getChild(id: number): Promise<Child | undefined>;
+  getChild(id: string): Promise<Child | undefined>;
   createChild(parentId: string, child: Omit<InsertChild, "parentId">): Promise<Child>;
-  updateChild(id: number, updates: Partial<InsertChild>): Promise<Child>;
+  updateChild(id: string, updates: Partial<InsertChild>): Promise<Child>;
 
-  // Modules
   getModules(): Promise<Module[]>;
-  getModule(id: number): Promise<Module | undefined>;
+  getModule(id: string): Promise<Module | undefined>;
   createModule(module: InsertModule): Promise<Module>;
 
-  // Progress
-  recordProgress(childId: number, moduleId: number, score?: number): Promise<Progress>;
-  getRecentProgress(childId: number): Promise<Progress[]>;
+  recordProgress(childId: string, moduleId: string, score?: number): Promise<Progress>;
+  getRecentProgress(childId: string): Promise<Progress[]>;
 }
 
 export class DatabaseStorage implements IStorage {
   async getChildren(parentId: string): Promise<Child[]> {
-    return await db.select().from(children).where(eq(children.parentId, parentId));
+    const docs = await ChildModel.find({ parentId }).lean();
+    return docs.map(toChild);
   }
 
-  async getChild(id: number): Promise<Child | undefined> {
-    const [child] = await db.select().from(children).where(eq(children.id, id));
-    return child;
+  async getChild(id: string): Promise<Child | undefined> {
+    const doc = await ChildModel.findById(id).lean();
+    return doc ? toChild(doc) : undefined;
   }
 
   async createChild(parentId: string, child: Omit<InsertChild, "parentId">): Promise<Child> {
-    const [newChild] = await db
-      .insert(children)
-      .values({ ...child, parentId })
-      .returning();
-    return newChild;
+    const doc = await ChildModel.create({ ...child, parentId });
+    return toChild(doc.toObject());
   }
 
-  async updateChild(id: number, updates: Partial<InsertChild>): Promise<Child> {
-    const [updatedChild] = await db
-      .update(children)
-      .set(updates)
-      .where(eq(children.id, id))
-      .returning();
-    return updatedChild;
+  async updateChild(id: string, updates: Partial<InsertChild>): Promise<Child> {
+    const doc = await ChildModel.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
+    return toChild(doc!);
   }
 
   async getModules(): Promise<Module[]> {
-    return await db.select().from(modules);
+    const docs = await ModuleModel.find().lean();
+    return docs.map(toModule);
   }
 
-  async getModule(id: number): Promise<Module | undefined> {
-    const [mod] = await db.select().from(modules).where(eq(modules.id, id));
-    return mod;
+  async getModule(id: string): Promise<Module | undefined> {
+    const doc = await ModuleModel.findById(id).lean();
+    return doc ? toModule(doc) : undefined;
   }
 
   async createModule(mod: InsertModule): Promise<Module> {
-    const [newModule] = await db.insert(modules).values(mod).returning();
-    return newModule;
+    const doc = await ModuleModel.create(mod);
+    return toModule(doc.toObject());
   }
 
-  async recordProgress(childId: number, moduleId: number, score?: number): Promise<Progress> {
-    const [newProgress] = await db
-      .insert(progress)
-      .values({
-        childId,
-        moduleId,
-        completed: true,
-        score: score || 0,
-      })
-      .returning();
+  async recordProgress(childId: string, moduleId: string, score?: number): Promise<Progress> {
+    const doc = await ProgressModel.create({
+      childId,
+      moduleId,
+      completed: true,
+      score: score || 0,
+    });
 
-    // Give some points to the child's learning score
     const pointsEarned = 10 + (score || 0);
     const child = await this.getChild(childId);
     if (child) {
-      await this.updateChild(childId, { learningScore: child.learningScore + pointsEarned });
+      await this.updateChild(childId, { learningScore: child.learningScore + pointsEarned } as any);
     }
 
-    return newProgress;
+    return toProgress(doc.toObject());
   }
 
-  async getRecentProgress(childId: number): Promise<Progress[]> {
-    return await db
-      .select()
-      .from(progress)
-      .where(eq(progress.childId, childId))
-      .orderBy(desc(progress.completedAt))
-      .limit(10);
+  async getRecentProgress(childId: string): Promise<Progress[]> {
+    const docs = await ProgressModel.find({ childId })
+      .sort({ completedAt: -1 })
+      .limit(10)
+      .lean();
+    return docs.map(toProgress);
   }
+}
+
+function toChild(doc: any): Child {
+  return {
+    id: doc._id.toString(),
+    parentId: doc.parentId,
+    name: doc.name,
+    age: doc.age,
+    level: doc.level ?? "beginner",
+    learningScore: doc.learningScore ?? 0,
+    screenTimeLimit: doc.screenTimeLimit ?? 60,
+    avatarColor: doc.avatarColor ?? "blue",
+  };
+}
+
+function toModule(doc: any): Module {
+  return {
+    id: doc._id.toString(),
+    title: doc.title,
+    description: doc.description,
+    type: doc.type,
+    difficultyLevel: doc.difficultyLevel ?? 1,
+    contentUrl: doc.contentUrl ?? null,
+  };
+}
+
+function toProgress(doc: any): Progress {
+  return {
+    id: doc._id.toString(),
+    childId: doc.childId.toString(),
+    moduleId: doc.moduleId.toString(),
+    completed: doc.completed,
+    score: doc.score ?? null,
+    completedAt: doc.completedAt ?? null,
+  };
 }
 
 export const storage = new DatabaseStorage();
