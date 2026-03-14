@@ -2,25 +2,45 @@ import { useParams, Link } from "wouter";
 import { useChildDashboard } from "@/hooks/use-children";
 import { useRecordProgress } from "@/hooks/use-progress";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Star, Play, Award, CheckCircle2, ChevronLeft } from "lucide-react";
+import { Home, Star, Award, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useState } from "react";
 import type { Module } from "@shared/schema";
+
+import AlphabetGame from "@/components/games/AlphabetGame";
+import ShapeMatcherGame from "@/components/games/ShapeMatcherGame";
+import CaterpillarStory from "@/components/games/CaterpillarStory";
+import DrawACatGame from "@/components/games/DrawACatGame";
+
+const MODULE_THEME: Record<string, { gradient: string; icon: string; borderColor: string }> = {
+  "Learn the Alphabet": { gradient: "from-blue-400 to-cyan-400", icon: "🔤", borderColor: "border-blue-300" },
+  "Shape Matcher": { gradient: "from-orange-400 to-yellow-400", icon: "🔷", borderColor: "border-orange-300" },
+  "The Hungry Caterpillar": { gradient: "from-green-400 to-emerald-500", icon: "🐛", borderColor: "border-green-300" },
+  "Draw a Cat": { gradient: "from-pink-400 to-rose-500", icon: "🎨", borderColor: "border-pink-300" },
+};
+
+function getGameComponent(mod: Module, onComplete: () => void) {
+  if (mod.title === "Learn the Alphabet") return <AlphabetGame onComplete={onComplete} />;
+  if (mod.title === "Shape Matcher") return <ShapeMatcherGame onComplete={onComplete} />;
+  if (mod.title === "The Hungry Caterpillar") return <CaterpillarStory onComplete={onComplete} />;
+  if (mod.title === "Draw a Cat") return <DrawACatGame onComplete={onComplete} />;
+  return null;
+}
 
 export default function ChildDashboard() {
   const { id } = useParams();
   const { data: dashboard, isLoading } = useChildDashboard(Number(id));
   const recordProgress = useRecordProgress();
-  const [playingModule, setPlayingModule] = useState<Module | null>(null);
-  const [completedModuleId, setCompletedModuleId] = useState<number | null>(null);
+  const [activeModule, setActiveModule] = useState<Module | null>(null);
+  const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FFFBEB] flex items-center justify-center">
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }} 
+      <div className="min-h-screen bg-[#F0F7FF] flex items-center justify-center">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="w-20 h-20 bg-secondary rounded-3xl"
+          className="w-20 h-20 bg-primary rounded-3xl"
         />
       </div>
     );
@@ -28,171 +48,160 @@ export default function ChildDashboard() {
 
   if (!dashboard) {
     return (
-      <div className="min-h-screen bg-[#FFFBEB] flex flex-col items-center justify-center gap-6">
-        <h1 className="font-display text-4xl text-foreground">Oops! We couldn't find your profile.</h1>
-        <Link href="/" className="px-6 py-3 bg-primary text-white rounded-full font-bold">Go Back Home</Link>
+      <div className="min-h-screen bg-[#F0F7FF] flex flex-col items-center justify-center gap-6">
+        <h1 className="font-display text-4xl text-foreground">Oops! Profile not found.</h1>
+        <Link href="/" className="px-6 py-3 bg-primary text-white rounded-full font-bold">Go Home</Link>
       </div>
     );
   }
 
   const { child, recommendedModules } = dashboard;
 
-  const handlePlay = (mod: Module) => {
-    setPlayingModule(mod);
-    // Simulate playing a module for 3 seconds
-    setTimeout(() => {
-      setPlayingModule(null);
-      fireConfetti();
-      setCompletedModuleId(mod.id);
-      recordProgress.mutate({ childId: child.id, moduleId: mod.id, score: 10 });
-      
-      // Clear success state after a bit
-      setTimeout(() => setCompletedModuleId(null), 3000);
-    }, 3000);
-  };
-
   const fireConfetti = () => {
-    const duration = 3 * 1000;
-    const end = Date.now() + duration;
-
+    const end = Date.now() + 3000;
     const frame = () => {
-      confetti({
-        particleCount: 5,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#FF5E7E', '#FFB800', '#00D1FF']
-      });
-      confetti({
-        particleCount: 5,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#FF5E7E', '#FFB800', '#00D1FF']
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ["#FF5E7E", "#FFB800", "#00D1FF"] });
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ["#FF5E7E", "#FFB800", "#00D1FF"] });
+      if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
   };
 
+  const handleComplete = (mod: Module) => {
+    fireConfetti();
+    setCompletedIds(prev => new Set(prev).add(mod.id));
+    recordProgress.mutate({ childId: child.id, moduleId: mod.id, score: 20 });
+    setActiveModule(null);
+  };
+
   const getAvatarColor = (color: string) => {
     const map: Record<string, string> = {
-      blue: 'bg-[#4facfe]',
-      green: 'bg-[#43e97b]',
-      purple: 'bg-[#a18cd1]',
-      orange: 'bg-[#fa709a]',
-      pink: 'bg-[#ff0844]',
+      blue: "bg-[#4facfe]", green: "bg-[#43e97b]", purple: "bg-[#a18cd1]",
+      orange: "bg-[#fa709a]", pink: "bg-[#ff0844]",
     };
     return map[color] || map.blue;
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F7FF] font-sans selection:bg-primary/30 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-10 left-10 w-32 h-32 bg-secondary/20 rounded-full blur-2xl" />
-      <div className="absolute bottom-20 right-10 w-48 h-48 bg-accent/20 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-[#F0F7FF] font-sans relative overflow-hidden">
+      <div className="absolute top-10 left-10 w-32 h-32 bg-secondary/20 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-48 h-48 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
       <header className="p-4 sm:p-8 flex items-center justify-between relative z-10">
-        <Link href="/" className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform">
+        <Link href="/" className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform" data-testid="button-home">
           <Home className="w-7 h-7" />
         </Link>
-
-        <motion.div 
+        <motion.div
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 border-4 border-[#FFFBEB]"
+          className="bg-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3"
         >
           <Star className="w-8 h-8 text-secondary fill-secondary" />
           <span className="font-display text-3xl font-bold text-foreground">{child.learningScore}</span>
         </motion.div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 pb-20 relative z-10">
-        <motion.div 
+      {/* Main */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-8 pb-20 relative z-10">
+        <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center mb-12"
         >
           <div className={`w-32 h-32 rounded-[2rem] ${getAvatarColor(child.avatarColor)} shadow-2xl flex items-center justify-center rotate-3 border-8 border-white mb-6`}>
-             <span className="font-display text-6xl text-white font-bold">{child.name.charAt(0)}</span>
+            <span className="font-display text-6xl text-white font-bold">{child.name.charAt(0)}</span>
           </div>
           <h1 className="font-display text-5xl sm:text-6xl font-black text-foreground text-center">
             Hi, <span className="text-accent">{child.name}!</span>
           </h1>
-          <p className="text-xl sm:text-2xl text-muted-foreground mt-4 font-bold">What shall we play today?</p>
+          <p className="text-xl sm:text-2xl text-muted-foreground mt-4 font-bold">Pick an activity to play!</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-          {recommendedModules.map((mod, i) => (
-            <motion.div
-              key={mod.id}
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              whileHover={{ y: -10, scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handlePlay(mod)}
-              className={`
-                cursor-pointer relative overflow-hidden bg-white rounded-[2rem] p-6 shadow-xl border-b-8
-                ${completedModuleId === mod.id ? 'border-green-400 ring-4 ring-green-200' : 'border-primary/20'}
-              `}
-            >
-              <div className="mb-4">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center
-                  ${mod.type === 'video' ? 'bg-blue-100 text-blue-500' : 
-                    mod.type === 'game' ? 'bg-orange-100 text-orange-500' :
-                    mod.type === 'story' ? 'bg-purple-100 text-purple-500' :
-                    'bg-pink-100 text-pink-500'
-                  }
-                `}>
-                  {completedModuleId === mod.id ? (
-                     <CheckCircle2 className="w-10 h-10 text-green-500" />
-                  ) : (
-                    <Play className="w-8 h-8 ml-1" />
-                  )}
-                </div>
-              </div>
-              <h3 className="font-display text-2xl font-bold leading-tight mb-2 text-foreground">{mod.title}</h3>
-              <p className="text-muted-foreground font-medium text-sm line-clamp-2">{mod.description}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+          {recommendedModules.map((mod, i) => {
+            const theme = MODULE_THEME[mod.title] || { gradient: "from-blue-400 to-purple-400", icon: "⭐", borderColor: "border-blue-300" };
+            const isCompleted = completedIds.has(mod.id);
 
-              {completedModuleId === mod.id && (
-                <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center backdrop-blur-sm">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-white rounded-full p-3 shadow-xl">
-                    <Award className="w-12 h-12 text-secondary fill-secondary" />
-                  </motion.div>
+            return (
+              <motion.div
+                key={mod.id}
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setActiveModule(mod)}
+                className={`cursor-pointer relative bg-white rounded-[2rem] overflow-hidden shadow-xl border-b-8 ${isCompleted ? "border-green-400" : theme.borderColor}`}
+                data-testid={`card-module-${mod.id}`}
+              >
+                {/* Gradient banner */}
+                <div className={`bg-gradient-to-r ${theme.gradient} p-6 flex items-center justify-between`}>
+                  <span className="font-display text-white text-xl font-black">{mod.type.toUpperCase()}</span>
+                  <span className="text-5xl">{theme.icon}</span>
                 </div>
-              )}
-            </motion.div>
-          ))}
+
+                <div className="p-6">
+                  <h3 className="font-display text-2xl font-black text-foreground mb-2">{mod.title}</h3>
+                  <p className="text-muted-foreground font-medium text-sm mb-5">{mod.description}</p>
+
+                  <div className={`w-full py-3 rounded-xl font-bold text-center text-white transition-all bg-gradient-to-r ${theme.gradient} shadow-md`}>
+                    {isCompleted ? "✅ Play Again!" : "▶ Let's Play!"}
+                  </div>
+                </div>
+
+                {isCompleted && (
+                  <div className="absolute top-3 right-3 bg-green-400 text-white rounded-full p-1">
+                    <Award className="w-5 h-5" />
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       </main>
 
-      {/* Playing Overlay */}
+      {/* Game Modal */}
       <AnimatePresence>
-        {playingModule && (
-          <motion.div 
+        {activeModule && (
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
           >
-            <motion.div 
-              initial={{ scale: 0.8, y: 50 }}
+            <motion.div
+              initial={{ scale: 0.85, y: 40 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-4xl aspect-video rounded-[3rem] shadow-2xl overflow-hidden relative flex flex-col items-center justify-center"
+              exit={{ scale: 0.85, y: 40 }}
+              transition={{ type: "spring", bounce: 0.3 }}
+              className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
+              style={{ maxHeight: "92vh" }}
             >
-              <motion.div 
-                animate={{ rotate: 360 }} 
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                className="w-24 h-24 border-8 border-t-accent border-r-primary border-b-secondary border-l-green-400 rounded-full mb-8"
-              />
-              <h2 className="font-display text-4xl font-bold text-foreground">Playing {playingModule.title}...</h2>
-              <p className="text-xl text-muted-foreground mt-2 font-medium">Getting everything ready!</p>
+              {/* Modal header */}
+              {(() => {
+                const theme = MODULE_THEME[activeModule.title] || { gradient: "from-blue-400 to-purple-400", icon: "⭐", borderColor: "border-blue-300" };
+                return (
+                  <div className={`bg-gradient-to-r ${theme.gradient} px-6 py-4 flex items-center justify-between shrink-0`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{theme.icon}</span>
+                      <h2 className="font-display text-2xl font-black text-white">{activeModule.title}</h2>
+                    </div>
+                    <button
+                      onClick={() => setActiveModule(null)}
+                      className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all"
+                      data-testid="button-close-game"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {/* Game content */}
+              <div className="flex-1 overflow-hidden p-4 sm:p-6">
+                {getGameComponent(activeModule, () => handleComplete(activeModule))}
+              </div>
             </motion.div>
           </motion.div>
         )}
