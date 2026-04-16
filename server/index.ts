@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -85,16 +86,27 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  // PORT from env when set (e.g. Replit/hosting). Prod defaults to 5000. Dev defaults to 5173
+  // so local runs avoid :3000 (often taken) and :5000 (AirPlay Receiver on some Macs).
+  const port = parseInt(
+    process.env.PORT ?? (process.env.NODE_ENV === "production" ? "5000" : "5173"),
+    10,
+  );
+
+  httpServer.once("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      log(
+        `Port ${port} is already in use. Set a free port, e.g. PORT=3001 npm run dev. On macOS, AirPlay Receiver may use :5000 (System Settings → General → AirDrop & Handoff). See what holds the port: lsof -i :${port}`,
+        "error",
+      );
+      process.exit(1);
+    }
+  });
+
   httpServer.listen(
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

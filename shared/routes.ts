@@ -107,7 +107,46 @@ export const api = {
         400: errorSchemas.validation,
       },
     }
-  }
+  },
+  analytics: {
+    parent: {
+      method: 'GET' as const,
+      path: '/api/analytics' as const,
+      responses: {
+        200: z.object({
+          children: z.array(z.object({
+            childId: z.number(),
+            childName: z.string(),
+            avatarColor: z.string(),
+            totalScore: z.number(),
+            modulesCompleted: z.number(),
+            averageScore: z.number(),
+            recentScores: z.array(z.object({
+              date: z.string(),
+              score: z.number(),
+              moduleTitle: z.string(),
+            })),
+            moduleTypeBreakdown: z.array(z.object({
+              type: z.string(),
+              count: z.number(),
+            })),
+          })),
+          overallStats: z.object({
+            totalModulesCompleted: z.number(),
+            totalScore: z.number(),
+            averageScore: z.number(),
+            activeChildren: z.number(),
+          }),
+          weeklyActivity: z.array(z.object({
+            date: z.string(),
+            completions: z.number(),
+            totalScore: z.number(),
+          })),
+        }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

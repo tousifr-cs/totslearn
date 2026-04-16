@@ -63,6 +63,8 @@ export const insertDailyChallengeSchema = createInsertSchema(dailyChallenges).om
 // Types
 export type Child = typeof children.$inferSelect;
 export type InsertChild = z.infer<typeof insertChildSchema>;
+/** Updates from API use Partial<InsertChild>; server may also set learningScore (omitted from inserts). */
+export type UpdateChild = Partial<InsertChild> & Partial<Pick<Child, "learningScore">>;
 export type Module = typeof modules.$inferSelect;
 export type InsertModule = z.infer<typeof insertModuleSchema>;
 export type Progress = typeof progress.$inferSelect;

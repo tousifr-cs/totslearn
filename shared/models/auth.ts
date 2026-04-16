@@ -27,3 +27,8 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+/** App role for demo / session API; omitted for Replit users who use DB profile only. */
+export type AppRole = "parent" | "admin" | "child";
+
+export type AuthUser = User & { role?: AppRole; childId?: number };

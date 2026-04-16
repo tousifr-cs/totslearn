@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, RefreshCw } from "lucide-react";
+import { Star, Mic, Loader2 } from "lucide-react";
+import { useLetterSpeechRecognition } from "@/hooks/useLetterSpeechRecognition";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -44,48 +45,125 @@ const QUIZ_QUESTIONS = [
   { question: "Which letter starts 🍇 Grape?", answer: "G" },
 ];
 
+const SAY_ROUNDS = 5;
+
 function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
 export default function AlphabetGame({ onComplete }: { onComplete: () => void }) {
-  const [mode, setMode] = useState<"explore" | "quiz">("explore");
+  const [mode, setMode] = useState<"explore" | "quiz" | "say">("explore");
   const [selected, setSelected] = useState<string | null>(null);
   const [quizIndex, setQuizIndex] = useState(0);
-  const [score, setScore] = useState(0);
+  const [quizScore, setQuizScore] = useState(0);
   const [answered, setAnswered] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [finishedMode, setFinishedMode] = useState<"quiz" | "say">("quiz");
+
+  const [sayIndex, setSayIndex] = useState(0);
+  const [sayScore, setSayScore] = useState(0);
+  const [sayFeedback, setSayFeedback] = useState<"correct" | "wrong" | "unclear" | null>(null);
 
   const shuffledQuestions = useState(() => shuffle(QUIZ_QUESTIONS).slice(0, 5))[0];
   const currentQ = shuffledQuestions[quizIndex];
   const choices = useState(() =>
-    shuffledQuestions.map(q => shuffle(LETTERS.filter(l => l !== q.answer).slice(0, 3).concat(q.answer)))
+    shuffledQuestions.map((q) => shuffle(LETTERS.filter((l) => l !== q.answer).slice(0, 3).concat(q.answer))),
   )[0];
+
+  const sayLetters = useState(() => shuffle([...LETTERS]).slice(0, SAY_ROUNDS))[0];
+  const targetSayLetter = sayLetters[sayIndex];
+
+  const { state: speechState, lastTranscript, error, supported, listen, clearError } =
+    useLetterSpeechRecognition();
+
+  /** Mic + speech APIs require a secure context (HTTPS), except localhost */
+  const speechContextOk = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    return (
+      window.isSecureContext ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname === "[::1]"
+    );
+  }, []);
 
   const handleQuizAnswer = (letter: string) => {
     if (answered) return;
     setAnswered(letter);
-    if (letter === currentQ.answer) setScore(s => s + 1);
+    if (letter === currentQ.answer) setQuizScore((s) => s + 1);
 
     setTimeout(() => {
       if (quizIndex + 1 >= shuffledQuestions.length) {
+        setFinishedMode("quiz");
         setDone(true);
         onComplete();
       } else {
-        setQuizIndex(i => i + 1);
+        setQuizIndex((i) => i + 1);
         setAnswered(null);
       }
     }, 1200);
   };
 
+  const advanceSay = () => {
+    setSayFeedback(null);
+    clearError();
+    if (sayIndex + 1 >= sayLetters.length) {
+      setFinishedMode("say");
+      setDone(true);
+      onComplete();
+    } else {
+      setSayIndex((i) => i + 1);
+    }
+  };
+
+  const handleSayTap = async () => {
+    if (speechState === "listening" || sayFeedback === "correct") return;
+    clearError();
+    setSayFeedback(null);
+    const letter = await listen();
+    if (letter === targetSayLetter) {
+      setSayFeedback("correct");
+      setSayScore((s) => s + 1);
+      setTimeout(advanceSay, 1200);
+    } else if (letter) {
+      setSayFeedback("wrong");
+      setTimeout(advanceSay, 1500);
+    } else {
+      setSayFeedback("unclear");
+    }
+  };
+
+  const resetAll = () => {
+    setMode("explore");
+    setDone(false);
+    setQuizIndex(0);
+    setQuizScore(0);
+    setAnswered(null);
+    setSayIndex(0);
+    setSayScore(0);
+    setSayFeedback(null);
+    clearError();
+  };
+
+  const displayScore = finishedMode === "say" ? sayScore : quizScore;
+  const displayTotal = finishedMode === "say" ? sayLetters.length : shuffledQuestions.length;
+
   if (done) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl">🏆</motion.div>
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl">
+          🏆
+        </motion.div>
         <h2 className="font-display text-4xl font-black text-foreground">Amazing!</h2>
-        <p className="text-2xl text-muted-foreground">You got <span className="text-primary font-bold">{score}</span> out of <span className="text-primary font-bold">{shuffledQuestions.length}</span> right!</p>
-        <button onClick={() => { setMode("explore"); setDone(false); setQuizIndex(0); setScore(0); setAnswered(null); }}
-          className="px-8 py-4 bg-primary text-white rounded-full font-bold text-xl shadow-lg">
+        <p className="text-2xl text-muted-foreground">
+          You got{" "}
+          <span className="text-primary font-bold">{displayScore}</span> out of{" "}
+          <span className="text-primary font-bold">{displayTotal}</span> right!
+        </p>
+        <button
+          onClick={resetAll}
+          className="px-8 py-4 bg-primary text-white rounded-full font-bold text-xl shadow-lg"
+        >
           Play Again
         </button>
       </div>
@@ -94,23 +172,37 @@ export default function AlphabetGame({ onComplete }: { onComplete: () => void })
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Tab switcher */}
-      <div className="flex gap-2 mb-4 shrink-0">
-        <button onClick={() => setMode("explore")} className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${mode === "explore" ? "bg-primary text-white shadow-lg" : "bg-white text-muted-foreground"}`}>
+      <div className="flex flex-wrap gap-2 mb-4 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMode("explore")}
+          className={`px-4 sm:px-6 py-2 rounded-full font-bold text-sm transition-all ${mode === "explore" ? "bg-primary text-white shadow-lg" : "bg-white text-muted-foreground"}`}
+        >
           Explore Letters
         </button>
-        <button onClick={() => setMode("quiz")} className={`px-6 py-2 rounded-full font-bold text-sm transition-all ${mode === "quiz" ? "bg-accent text-white shadow-lg" : "bg-white text-muted-foreground"}`}>
+        <button
+          type="button"
+          onClick={() => setMode("quiz")}
+          className={`px-4 sm:px-6 py-2 rounded-full font-bold text-sm transition-all ${mode === "quiz" ? "bg-accent text-white shadow-lg" : "bg-white text-muted-foreground"}`}
+        >
           Quiz Me!
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("say")}
+          className={`px-4 sm:px-6 py-2 rounded-full font-bold text-sm transition-all ${mode === "say" ? "bg-violet-500 text-white shadow-lg" : "bg-white text-muted-foreground"}`}
+        >
+          Say it!
         </button>
       </div>
 
       {mode === "explore" ? (
         <div className="flex flex-col gap-4 overflow-hidden h-full">
-          {/* Letter grid */}
           <div className="flex-1 overflow-y-auto grid grid-cols-6 sm:grid-cols-9 gap-2">
-            {LETTERS.map(l => (
+            {LETTERS.map((l) => (
               <motion.button
                 key={l}
+                type="button"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setSelected(l)}
@@ -121,7 +213,6 @@ export default function AlphabetGame({ onComplete }: { onComplete: () => void })
             ))}
           </div>
 
-          {/* Selected letter detail */}
           <AnimatePresence>
             {selected && (
               <motion.div
@@ -133,17 +224,22 @@ export default function AlphabetGame({ onComplete }: { onComplete: () => void })
                 <span className="font-display text-8xl font-black leading-none">{selected}</span>
                 <div>
                   <p className="font-display text-4xl font-black">{LETTER_DATA[selected].word}</p>
-                  <p className="text-white/80 text-lg mt-1">is for <strong>{selected}</strong></p>
+                  <p className="text-white/80 text-lg mt-1">
+                    is for <strong>{selected}</strong>
+                  </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-      ) : (
+      ) : mode === "quiz" ? (
         <div className="flex flex-col items-center justify-center flex-1 gap-6">
           <div className="flex gap-1 mb-2">
             {shuffledQuestions.map((_, i) => (
-              <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < quizIndex ? "bg-green-400" : i === quizIndex ? "bg-primary" : "bg-muted"}`} />
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full transition-all ${i < quizIndex ? "bg-green-400" : i === quizIndex ? "bg-primary" : "bg-muted"}`}
+              />
             ))}
           </div>
 
@@ -153,18 +249,18 @@ export default function AlphabetGame({ onComplete }: { onComplete: () => void })
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-md w-full"
           >
-            <p className="font-display text-2xl sm:text-3xl font-black text-foreground mb-8">{currentQ.question}</p>
+            <p className="font-display text-2xl sm:text-3xl font-black text-foreground mb-8">
+              {currentQ.question}
+            </p>
             <div className="grid grid-cols-2 gap-4">
-              {choices[quizIndex].map(letter => (
+              {choices[quizIndex].map((letter) => (
                 <motion.button
                   key={letter}
+                  type="button"
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleQuizAnswer(letter)}
                   className={`py-5 rounded-2xl font-display text-4xl font-black shadow-lg transition-all
-                    ${answered === null ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" :
-                      letter === currentQ.answer ? "bg-green-400 text-white scale-105 shadow-green-200 shadow-xl" :
-                      answered === letter ? "bg-red-400 text-white" :
-                      "bg-muted text-muted-foreground opacity-50"}
+                    ${answered === null ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" : letter === currentQ.answer ? "bg-green-400 text-white scale-105 shadow-green-200 shadow-xl" : answered === letter ? "bg-red-400 text-white" : "bg-muted text-muted-foreground opacity-50"}
                   `}
                 >
                   {letter}
@@ -175,8 +271,130 @@ export default function AlphabetGame({ onComplete }: { onComplete: () => void })
 
           <div className="flex items-center gap-2">
             <Star className="w-5 h-5 text-secondary fill-secondary" />
-            <span className="font-bold text-lg">{score} correct</span>
+            <span className="font-bold text-lg">{quizScore} correct</span>
           </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center flex-1 gap-4 min-h-0">
+          {!supported ? (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 text-center max-w-md">
+              <p className="font-display text-xl font-bold text-foreground mb-2">Speech isn&apos;t available here</p>
+              <p className="text-muted-foreground text-sm">
+                Try this game in <strong>Chrome</strong> or <strong>Edge</strong> on a computer or Android, and allow the
+                microphone when asked.
+              </p>
+            </div>
+          ) : !speechContextOk ? (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 text-center max-w-md">
+              <p className="font-display text-xl font-bold text-foreground mb-2">Use a secure address</p>
+              <p className="text-muted-foreground text-sm">
+                Speech and the microphone need <strong>HTTPS</strong>, or open the app at{" "}
+                <strong>localhost</strong>. Plain <code className="text-foreground">http://</code> on another computer name
+                (e.g. on your LAN) won&apos;t work.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-1 mb-1">
+                {sayLetters.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-3 h-3 rounded-full transition-all ${i < sayIndex ? "bg-green-400" : i === sayIndex ? "bg-violet-500" : "bg-muted"}`}
+                  />
+                ))}
+              </div>
+
+              <motion.div
+                key={sayIndex}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-4 w-full max-w-md"
+              >
+                <p className="font-display text-xl sm:text-2xl font-black text-foreground text-center">
+                  What letter is this?
+                </p>
+                <div
+                  className={`w-full aspect-[4/3] max-h-[220px] rounded-3xl ${LETTER_DATA[targetSayLetter].color} flex items-center justify-center shadow-2xl border-4 border-white/30`}
+                >
+                  <span className="font-display text-[min(28vw,8rem)] font-black text-white drop-shadow-lg">
+                    {targetSayLetter}
+                  </span>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {sayFeedback === "correct" && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-green-600 dark:text-green-400 font-bold text-xl"
+                    >
+                      Yes! That&apos;s {targetSayLetter}!
+                    </motion.p>
+                  )}
+                  {sayFeedback === "wrong" && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-red-500 font-bold text-lg text-center px-2"
+                    >
+                      Nice try! That was {targetSayLetter}.
+                      {lastTranscript ? (
+                        <span className="block text-sm font-normal text-muted-foreground mt-1">
+                          Heard: &ldquo;{lastTranscript}&rdquo;
+                        </span>
+                      ) : null}
+                    </motion.p>
+                  )}
+                  {sayFeedback === "unclear" && (
+                    <motion.p
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-amber-700 dark:text-amber-300 font-bold text-center px-2"
+                    >
+                      I didn&apos;t catch that. Tap the button and say the letter name.
+                      {lastTranscript ? (
+                        <span className="block text-sm font-normal text-muted-foreground mt-1">
+                          Heard: &ldquo;{lastTranscript}&rdquo;
+                        </span>
+                      ) : null}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                {error && (
+                  <p className="text-sm text-red-600 dark:text-red-400 text-center px-4">{error}</p>
+                )}
+
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: speechState === "listening" ? 1 : 0.97 }}
+                  onClick={handleSayTap}
+                  disabled={speechState === "listening" || sayFeedback === "correct"}
+                  className={`mt-2 flex items-center justify-center gap-3 px-10 py-5 rounded-full font-display text-xl font-black text-white shadow-xl transition-all disabled:opacity-70
+                    ${speechState === "listening" ? "bg-violet-400" : "bg-violet-600 hover:bg-violet-700"}
+                  `}
+                >
+                  {speechState === "listening" ? (
+                    <>
+                      <Loader2 className="w-7 h-7 animate-spin" />
+                      Listening…
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-7 h-7" />
+                      Tap &amp; say the letter
+                    </>
+                  )}
+                </motion.button>
+
+                <div className="flex items-center gap-2 mt-1">
+                  <Star className="w-5 h-5 text-secondary fill-secondary" />
+                  <span className="font-bold text-lg">{sayScore} correct</span>
+                </div>
+              </motion.div>
+            </>
+          )}
         </div>
       )}
     </div>

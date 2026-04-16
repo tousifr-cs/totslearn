@@ -1,4 +1,6 @@
-import { useParams, Link } from "wouter";
+import { useParams, Link, Redirect } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { useHomePath } from "@/hooks/use-home-path";
 import { useChildDashboard } from "@/hooks/use-children";
 import { useRecordProgress } from "@/hooks/use-progress";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,17 +8,36 @@ import { Home, Star, Award, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useState } from "react";
 import type { Module } from "@shared/schema";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 import AlphabetGame from "@/components/games/AlphabetGame";
 import ShapeMatcherGame from "@/components/games/ShapeMatcherGame";
 import CaterpillarStory from "@/components/games/CaterpillarStory";
 import DrawACatGame from "@/components/games/DrawACatGame";
+import MemoryMatchGame from "@/components/games/MemoryMatchGame";
+import CountTapGame from "@/components/games/CountTapGame";
+import ColorMatchGame from "@/components/games/ColorMatchGame";
+import SameDifferentGame from "@/components/games/SameDifferentGame";
+import FollowThePathGame from "@/components/games/FollowThePathGame";
+import StartingSoundGame from "@/components/games/StartingSoundGame";
+import SortingGame from "@/components/games/SortingGame";
+import PatternFinishGame from "@/components/games/PatternFinishGame";
+import NumberOrderGame from "@/components/games/NumberOrderGame";
 
 const MODULE_THEME: Record<string, { gradient: string; icon: string; borderColor: string }> = {
   "Learn the Alphabet": { gradient: "from-blue-400 to-cyan-400", icon: "🔤", borderColor: "border-blue-300" },
   "Shape Matcher": { gradient: "from-orange-400 to-yellow-400", icon: "🔷", borderColor: "border-orange-300" },
   "The Hungry Caterpillar": { gradient: "from-green-400 to-emerald-500", icon: "🐛", borderColor: "border-green-300" },
   "Draw a Cat": { gradient: "from-pink-400 to-rose-500", icon: "🎨", borderColor: "border-pink-300" },
+  "Memory Match": { gradient: "from-violet-400 to-purple-500", icon: "🃏", borderColor: "border-violet-300" },
+  "Count & Tap": { gradient: "from-amber-400 to-orange-500", icon: "👆", borderColor: "border-amber-300" },
+  "Color Match": { gradient: "from-fuchsia-400 to-pink-500", icon: "🎨", borderColor: "border-fuchsia-300" },
+  "Same or Different": { gradient: "from-teal-400 to-cyan-500", icon: "🔍", borderColor: "border-teal-300" },
+  "Follow the Path": { gradient: "from-lime-400 to-green-500", icon: "🗺️", borderColor: "border-lime-300" },
+  "Starting Sounds": { gradient: "from-indigo-400 to-blue-500", icon: "🔊", borderColor: "border-indigo-300" },
+  "Hot or Cold": { gradient: "from-red-400 to-sky-500", icon: "🌡️", borderColor: "border-red-300" },
+  "Pattern Play": { gradient: "from-yellow-400 to-amber-500", icon: "🧩", borderColor: "border-yellow-300" },
+  "Number Order": { gradient: "from-emerald-400 to-teal-500", icon: "🔢", borderColor: "border-emerald-300" },
 };
 
 function getGameComponent(mod: Module, onComplete: () => void) {
@@ -24,19 +45,42 @@ function getGameComponent(mod: Module, onComplete: () => void) {
   if (mod.title === "Shape Matcher") return <ShapeMatcherGame onComplete={onComplete} />;
   if (mod.title === "The Hungry Caterpillar") return <CaterpillarStory onComplete={onComplete} />;
   if (mod.title === "Draw a Cat") return <DrawACatGame onComplete={onComplete} />;
+  if (mod.title === "Memory Match") return <MemoryMatchGame onComplete={onComplete} />;
+  if (mod.title === "Count & Tap") return <CountTapGame onComplete={onComplete} />;
+  if (mod.title === "Color Match") return <ColorMatchGame onComplete={onComplete} />;
+  if (mod.title === "Same or Different") return <SameDifferentGame onComplete={onComplete} />;
+  if (mod.title === "Follow the Path") return <FollowThePathGame onComplete={onComplete} />;
+  if (mod.title === "Starting Sounds") return <StartingSoundGame onComplete={onComplete} />;
+  if (mod.title === "Hot or Cold") return <SortingGame onComplete={onComplete} />;
+  if (mod.title === "Pattern Play") return <PatternFinishGame onComplete={onComplete} />;
+  if (mod.title === "Number Order") return <NumberOrderGame onComplete={onComplete} />;
   return null;
 }
 
 export default function ChildDashboard() {
   const { id } = useParams();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const homePath = useHomePath();
   const { data: dashboard, isLoading } = useChildDashboard(Number(id));
   const recordProgress = useRecordProgress();
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect to="/" />;
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F0F7FF] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div
           animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -48,9 +92,11 @@ export default function ChildDashboard() {
 
   if (!dashboard) {
     return (
-      <div className="min-h-screen bg-[#F0F7FF] flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
         <h1 className="font-display text-4xl text-foreground">Oops! Profile not found.</h1>
-        <Link href="/" className="px-6 py-3 bg-primary text-white rounded-full font-bold">Go Home</Link>
+        <Link href={homePath} className="px-6 py-3 bg-primary text-white rounded-full font-bold">
+          Go home
+        </Link>
       </div>
     );
   }
@@ -83,23 +129,27 @@ export default function ChildDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F7FF] font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-background font-sans relative overflow-hidden">
       <div className="absolute top-10 left-10 w-32 h-32 bg-secondary/20 rounded-full blur-2xl pointer-events-none" />
       <div className="absolute bottom-20 right-10 w-48 h-48 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header */}
       <header className="p-4 sm:p-8 flex items-center justify-between relative z-10">
-        <Link href="/" className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform" data-testid="button-home">
+        <Link href={homePath} className="w-14 h-14 bg-card rounded-full shadow-lg flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-transform" data-testid="button-home">
           <Home className="w-7 h-7" />
         </Link>
-        <motion.div
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3"
-        >
-          <Star className="w-8 h-8 text-secondary fill-secondary" />
-          <span className="font-display text-3xl font-bold text-foreground">{child.learningScore}</span>
-        </motion.div>
+        <div className="flex items-center gap-3">
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="bg-card px-6 py-3 rounded-full shadow-lg flex items-center gap-3"
+          >
+            <Star className="w-8 h-8 text-secondary fill-secondary" />
+            <span className="font-display text-3xl font-bold text-foreground">{child.learningScore}</span>
+          </motion.div>
+          <div className="bg-card rounded-full shadow-lg">
+            <ThemeToggle />
+          </div>
+        </div>
       </header>
 
       {/* Main */}
@@ -109,7 +159,7 @@ export default function ChildDashboard() {
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center mb-12"
         >
-          <div className={`w-32 h-32 rounded-[2rem] ${getAvatarColor(child.avatarColor)} shadow-2xl flex items-center justify-center rotate-3 border-8 border-white mb-6`}>
+          <div className={`w-32 h-32 rounded-[2rem] ${getAvatarColor(child.avatarColor)} shadow-2xl flex items-center justify-center rotate-3 border-8 border-card mb-6`}>
             <span className="font-display text-6xl text-white font-bold">{child.name.charAt(0)}</span>
           </div>
           <h1 className="font-display text-5xl sm:text-6xl font-black text-foreground text-center">
@@ -132,7 +182,7 @@ export default function ChildDashboard() {
                 whileHover={{ y: -8, scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setActiveModule(mod)}
-                className={`cursor-pointer relative bg-white rounded-[2rem] overflow-hidden shadow-xl border-b-8 ${isCompleted ? "border-green-400" : theme.borderColor}`}
+                className={`cursor-pointer relative bg-card rounded-[2rem] overflow-hidden shadow-xl border-b-8 ${isCompleted ? "border-green-400" : theme.borderColor}`}
                 data-testid={`card-module-${mod.id}`}
               >
                 {/* Gradient banner */}
@@ -175,7 +225,7 @@ export default function ChildDashboard() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.85, y: 40 }}
               transition={{ type: "spring", bounce: 0.3 }}
-              className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
+              className="bg-card w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
               style={{ maxHeight: "92vh" }}
             >
               {/* Modal header */}

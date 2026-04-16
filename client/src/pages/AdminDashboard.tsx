@@ -2,6 +2,7 @@ import { Layout } from "@/components/Layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useModules, useCreateModule } from "@/hooks/use-modules";
 import { Redirect } from "wouter";
+import { homePathForRole } from "@/lib/homeRoutes";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +23,8 @@ const moduleSchema = api.modules.create.input.extend({
 });
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const canPublish = !user?.role || user.role === "admin";
   const { data: modules, isLoading: modulesLoading } = useModules();
   const createModule = useCreateModule();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -49,7 +51,15 @@ export default function AdminDashboard() {
   }
 
   if (!isAuthenticated) {
-    return <Redirect to="/api/login" />;
+    return <Redirect to="/" />;
+  }
+
+  if (user?.role === "parent") {
+    return <Redirect to="/parent" replace />;
+  }
+
+  if (user?.role === "child") {
+    return <Redirect to={homePathForRole("child")} replace />;
   }
 
   const onSubmit = (data: z.infer<typeof moduleSchema>) => {
@@ -80,9 +90,13 @@ export default function AdminDashboard() {
             <p className="text-muted-foreground mt-1">Manage global learning modules available to all children.</p>
           </div>
 
+          {canPublish ? (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <button className="px-5 py-2.5 rounded-xl font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+              <button
+                type="button"
+                className="px-5 py-2.5 rounded-xl font-semibold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
                 <Plus className="w-5 h-5" /> New Module
               </button>
             </DialogTrigger>
@@ -149,6 +163,11 @@ export default function AdminDashboard() {
               </form>
             </DialogContent>
           </Dialog>
+          ) : (
+            <p className="text-sm text-muted-foreground max-w-sm text-right">
+              Browse modules below. Publishing new content is limited to admins.
+            </p>
+          )}
         </div>
 
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">

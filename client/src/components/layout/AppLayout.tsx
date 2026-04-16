@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useHomePath } from "@/hooks/use-home-path";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, LogOut, Settings, LayoutDashboard } from "lucide-react";
 
@@ -10,12 +11,13 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth();
+  const homePath = useHomePath();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50/50">
       <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md shadow-sm">
         <div className="container mx-auto h-16 px-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+          <Link href={homePath} className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
             <div className="bg-primary text-white p-1.5 rounded-lg shadow-sm">
               <GraduationCap className="h-6 w-6" />
             </div>
@@ -37,7 +39,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <span>{user.firstName || user.email}</span>
               </div>
 
-              <Link href="/" className="text-slate-600 hover:text-primary transition-colors flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary/5">
+              <Link href={homePath} className="text-slate-600 hover:text-primary transition-colors flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary/5">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Dashboard</span>
               </Link>
