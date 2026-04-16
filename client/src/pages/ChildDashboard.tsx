@@ -61,10 +61,10 @@ export default function ChildDashboard() {
   const { id } = useParams();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const homePath = useHomePath();
-  const { data: dashboard, isLoading } = useChildDashboard(Number(id));
+  const { data: dashboard, isLoading } = useChildDashboard(id ?? "");
   const recordProgress = useRecordProgress();
   const [activeModule, setActiveModule] = useState<Module | null>(null);
-  const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   if (authLoading) {
     return (

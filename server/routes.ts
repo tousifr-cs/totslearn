@@ -19,14 +19,14 @@ function canManageModules(req: { user?: { role?: AppRole } }): boolean {
   return role === "admin";
 }
 
-const requireParent: RequestHandler = (req, res, next) => {
+const requireParent: RequestHandler = (req: any, res, next) => {
   if (!isParentUser(req)) {
     return res.status(403).json({ message: "Parent access required" });
   }
   next();
 };
 
-const requireModuleEditor: RequestHandler = (req, res, next) => {
+const requireModuleEditor: RequestHandler = (req: any, res, next) => {
   if (!canManageModules(req)) {
     return res.status(403).json({ message: "Admin access required" });
   }
@@ -146,7 +146,7 @@ const DEMO_PROFILES: Record<
 };
 
 /** Demo learner row under demo-parent; created on first child demo login or seed. */
-async function ensureDemoLearnerChild(): Promise<number> {
+async function ensureDemoLearnerChild(): Promise<string> {
   const parentId = DEMO_PROFILES.parent.id;
   const existing = await storage.getChildren(parentId);
   const found = existing.find((c) => c.name === "Demo Learner");
@@ -161,7 +161,7 @@ async function ensureDemoLearnerChild(): Promise<number> {
   return created.id;
 }
 
-async function assertCanAccessChildResource(req: any, childId: number): Promise<void> {
+async function assertCanAccessChildResource(req: any, childId: string): Promise<void> {
   const child = await storage.getChild(childId);
   if (!child) {
     const err = new Error("Child not found") as Error & { statusCode: number };
@@ -171,7 +171,7 @@ async function assertCanAccessChildResource(req: any, childId: number): Promise<
   const role = req.user?.role as AppRole | undefined;
   const userId = req.user?.claims?.sub as string;
   if (role === "child") {
-    if (req.user?.childId !== childId) {
+    if (String(req.user?.childId) !== String(childId)) {
       const err = new Error("Unauthorized") as Error & { statusCode: number };
       err.statusCode = 401;
       throw err;
@@ -191,13 +191,13 @@ async function assertCanAccessChildResource(req: any, childId: number): Promise<
   throw err;
 }
 
-function buildDemoPassportUser(role: AppRole, childId?: number) {
+function buildDemoPassportUser(role: AppRole, childId?: string) {
   const p = DEMO_PROFILES[role];
   const u: {
     claims: { sub: string };
     access_token: string;
     role: AppRole;
-    childId?: number;
+    childId?: string;
   } = {
     claims: { sub: p.id },
     access_token: "demo",
@@ -209,7 +209,7 @@ function buildDemoPassportUser(role: AppRole, childId?: number) {
   return u;
 }
 
-function demoUserJson(role: AppRole, childId?: number) {
+function demoUserJson(role: AppRole, childId?: string) {
   const p = DEMO_PROFILES[role];
   const base = {
     id: p.id,
@@ -276,7 +276,7 @@ async function setupLocalAuth(app: Express) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     const role = req.user.role as AppRole;
-    const childId = req.user.childId as number | undefined;
+    const childId = req.user.childId as string | undefined;
     res.json(demoUserJson(role, childId));
   });
 
@@ -288,7 +288,7 @@ async function setupLocalAuth(app: Express) {
       return res.status(400).json({ message: "Invalid role" });
     }
     const role = parsed.data;
-    let childId: number | undefined;
+    let childId: string | undefined;
     if (role === "child") {
       try {
         childId = await ensureDemoLearnerChild();
@@ -366,7 +366,7 @@ export async function registerRoutes(
 
   app.get(api.children.get.path, isAuthenticated, async (req: any, res) => {
     try {
-      const childId = Number(req.params.id);
+      const childId = req.params.id;
       await assertCanAccessChildResource(req, childId);
       const child = await storage.getChild(childId);
       if (!child) {
@@ -386,7 +386,7 @@ export async function registerRoutes(
   app.put(api.children.update.path, isAuthenticated, requireParent, async (req: any, res) => {
     const userId = req.user.claims.sub;
     try {
-      const child = await storage.getChild(Number(req.params.id));
+      const child = await storage.getChild(req.params.id);
       if (!child) {
         return res.status(404).json({ message: 'Child not found' });
       }
@@ -395,7 +395,7 @@ export async function registerRoutes(
       }
 
       const input = api.children.update.input.parse(req.body);
-      const updatedChild = await storage.updateChild(Number(req.params.id), input);
+      const updatedChild = await storage.updateChild(req.params.id, input);
       res.json(updatedChild);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -410,7 +410,7 @@ export async function registerRoutes(
 
   app.get(api.children.getDashboard.path, isAuthenticated, async (req: any, res) => {
     try {
-      const childId = Number(req.params.id);
+      const childId = req.params.id;
       await assertCanAccessChildResource(req, childId);
       const child = await storage.getChild(childId);
       if (!child) {
@@ -424,7 +424,7 @@ export async function registerRoutes(
         child,
         recentProgress,
         activeChallenges: [],
-        recommendedModules,
+        recommendedModules: recommendedModules.slice(0, 4),
       });
     } catch (e: unknown) {
       const err = e as Error & { statusCode?: number };
@@ -449,7 +449,7 @@ export async function registerRoutes(
 
   app.get(api.modules.get.path, async (req, res) => {
     try {
-      const mod = await storage.getModule(Number(req.params.id));
+      const mod = await storage.getModule(req.params.id);
       if (!mod) {
         return res.status(404).json({ message: 'Module not found' });
       }
@@ -460,7 +460,6 @@ export async function registerRoutes(
   });
 
   app.post(api.modules.create.path, isAuthenticated, requireModuleEditor, async (req, res) => {
-    // Ideally we would check for an admin role here. 
     try {
       const input = api.modules.create.input.parse(req.body);
       const mod = await storage.createModule(input);
@@ -497,7 +496,6 @@ export async function registerRoutes(
     }
   });
 
-
   // ANALYTICS ROUTES
   app.get(api.analytics.parent.path, isAuthenticated, requireParent, async (req: any, res) => {
     const userId = req.user.claims.sub;
@@ -509,7 +507,6 @@ export async function registerRoutes(
     }
   });
 
-  // Seed initial data if needed
   seedDatabase().catch(console.error);
 
   return httpServer;

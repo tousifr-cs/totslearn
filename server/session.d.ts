@@ -6,7 +6,7 @@ declare module "express-session" {
       claims: { sub: string };
       access_token: string;
       role: "parent" | "admin" | "child";
-      childId?: number;
+      childId?: string;
     };
   }
 }
