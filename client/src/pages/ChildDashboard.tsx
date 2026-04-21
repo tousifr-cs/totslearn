@@ -1,7 +1,8 @@
 import { useParams, Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useHomePath } from "@/hooks/use-home-path";
-import { useChildDashboard } from "@/hooks/use-children";
+import { useChild } from "@/hooks/use-children";
+import { useModules } from "@/hooks/use-modules";
 import { useRecordProgress } from "@/hooks/use-progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, Star, Award, X } from "lucide-react";
@@ -23,9 +24,13 @@ import StartingSoundGame from "@/components/games/StartingSoundGame";
 import SortingGame from "@/components/games/SortingGame";
 import PatternFinishGame from "@/components/games/PatternFinishGame";
 import NumberOrderGame from "@/components/games/NumberOrderGame";
+import LoudOrQuietGame from "@/components/games/LoudOrQuietGame";
+import HighOrLowGame from "@/components/games/HighOrLowGame";
+import LetterSoundsGame from "@/components/games/LetterSoundsGame";
 
 const MODULE_THEME: Record<string, { gradient: string; icon: string; borderColor: string }> = {
   "Learn the Alphabet": { gradient: "from-blue-400 to-cyan-400", icon: "🔤", borderColor: "border-blue-300" },
+  "Letter Sounds": { gradient: "from-sky-400 to-blue-500", icon: "🔡", borderColor: "border-sky-300" },
   "Shape Matcher": { gradient: "from-orange-400 to-yellow-400", icon: "🔷", borderColor: "border-orange-300" },
   "The Hungry Caterpillar": { gradient: "from-green-400 to-emerald-500", icon: "🐛", borderColor: "border-green-300" },
   "Draw a Cat": { gradient: "from-pink-400 to-rose-500", icon: "🎨", borderColor: "border-pink-300" },
@@ -38,10 +43,13 @@ const MODULE_THEME: Record<string, { gradient: string; icon: string; borderColor
   "Hot or Cold": { gradient: "from-red-400 to-sky-500", icon: "🌡️", borderColor: "border-red-300" },
   "Pattern Play": { gradient: "from-yellow-400 to-amber-500", icon: "🧩", borderColor: "border-yellow-300" },
   "Number Order": { gradient: "from-emerald-400 to-teal-500", icon: "🔢", borderColor: "border-emerald-300" },
+  "Loud or Quiet": { gradient: "from-sky-400 to-indigo-500", icon: "🎚️", borderColor: "border-sky-300" },
+  "High or Low": { gradient: "from-violet-400 to-fuchsia-500", icon: "🎶", borderColor: "border-violet-300" },
 };
 
 function getGameComponent(mod: Module, onComplete: () => void) {
   if (mod.title === "Learn the Alphabet") return <AlphabetGame onComplete={onComplete} />;
+  if (mod.title === "Letter Sounds") return <LetterSoundsGame onComplete={onComplete} />;
   if (mod.title === "Shape Matcher") return <ShapeMatcherGame onComplete={onComplete} />;
   if (mod.title === "The Hungry Caterpillar") return <CaterpillarStory onComplete={onComplete} />;
   if (mod.title === "Draw a Cat") return <DrawACatGame onComplete={onComplete} />;
@@ -54,6 +62,8 @@ function getGameComponent(mod: Module, onComplete: () => void) {
   if (mod.title === "Hot or Cold") return <SortingGame onComplete={onComplete} />;
   if (mod.title === "Pattern Play") return <PatternFinishGame onComplete={onComplete} />;
   if (mod.title === "Number Order") return <NumberOrderGame onComplete={onComplete} />;
+  if (mod.title === "Loud or Quiet") return <LoudOrQuietGame onComplete={onComplete} />;
+  if (mod.title === "High or Low") return <HighOrLowGame onComplete={onComplete} />;
   return null;
 }
 
@@ -61,7 +71,9 @@ export default function ChildDashboard() {
   const { id } = useParams();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const homePath = useHomePath();
-  const { data: dashboard, isLoading } = useChildDashboard(id ?? "");
+  const { data: child, isLoading: childLoading } = useChild(id ?? "");
+  const { data: modules, isLoading: modulesLoading } = useModules();
+  const isLoading = childLoading || modulesLoading;
   const recordProgress = useRecordProgress();
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -90,7 +102,7 @@ export default function ChildDashboard() {
     );
   }
 
-  if (!dashboard) {
+  if (!child) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
         <h1 className="font-display text-4xl text-foreground">Oops! Profile not found.</h1>
@@ -100,8 +112,6 @@ export default function ChildDashboard() {
       </div>
     );
   }
-
-  const { child, recommendedModules } = dashboard;
 
   const fireConfetti = () => {
     const end = Date.now() + 3000;
@@ -169,7 +179,7 @@ export default function ChildDashboard() {
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-          {recommendedModules.map((mod, i) => {
+          {(modules ?? []).map((mod, i) => {
             const theme = MODULE_THEME[mod.title] || { gradient: "from-blue-400 to-purple-400", icon: "⭐", borderColor: "border-blue-300" };
             const isCompleted = completedIds.has(mod.id);
 

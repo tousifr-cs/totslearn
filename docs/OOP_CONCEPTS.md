@@ -1,7 +1,7 @@
 # OOP Concepts in Learning-Hub
 
 All six Object-Oriented Programming concepts are implemented in a single file:
-**`server/storage.ts`**
+`**server/storage.ts**`
 
 The rest of the application (`routes.ts`, client hooks, etc.) depends only on the
 `IStorage` interface and the exported `storage` object, so every concept is
@@ -63,14 +63,16 @@ a specific class. They never know or care *how* data is stored.
 
 **Where:** `BaseStorage`, `DatabaseStorage`, and `InMemoryStorage`
 
-| Modifier | Member | Accessible from |
-|---|---|---|
-| `private` | `BaseStorage.errorPrefix` | `BaseStorage` only |
-| `private` | `DatabaseStorage.db` | `DatabaseStorage` only |
-| `private` | `InMemoryStorage.childrenStore`, `modulesStore`, `progressStore`, `nextChildId`, `nextModuleId`, `nextProgressId` | `InMemoryStorage` only |
-| `protected readonly` | `BaseStorage.name` | `BaseStorage` + subclasses |
-| `protected` | `BaseStorage.formatError()` | `BaseStorage` + subclasses |
-| `protected` | `BaseStorage.buildWeeklyActivity()` | `BaseStorage` + subclasses |
+
+| Modifier             | Member                                                                                                            | Accessible from            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `private`            | `BaseStorage.errorPrefix`                                                                                         | `BaseStorage` only         |
+| `private`            | `DatabaseStorage.db`                                                                                              | `DatabaseStorage` only     |
+| `private`            | `InMemoryStorage.childrenStore`, `modulesStore`, `progressStore`, `nextChildId`, `nextModuleId`, `nextProgressId` | `InMemoryStorage` only     |
+| `protected readonly` | `BaseStorage.name`                                                                                                | `BaseStorage` + subclasses |
+| `protected`          | `BaseStorage.formatError()`                                                                                       | `BaseStorage` + subclasses |
+| `protected`          | `BaseStorage.buildWeeklyActivity()`                                                                               | `BaseStorage` + subclasses |
+
 
 ### Example: `private` vs `protected`
 
@@ -153,11 +155,13 @@ logic.
 
 **Where:** Three classes in `server/storage.ts`
 
-| Class | Role | Key Properties |
-|---|---|---|
-| `BaseStorage` | Abstract parent — shared logic + contracts | `name`, `errorPrefix` |
-| `DatabaseStorage` | Concrete — PostgreSQL persistence | `db` (Drizzle instance) |
-| `InMemoryStorage` | Concrete — in-memory persistence | `childrenStore`, `modulesStore`, `progressStore`, auto-increment IDs |
+
+| Class             | Role                                       | Key Properties                                                       |
+| ----------------- | ------------------------------------------ | -------------------------------------------------------------------- |
+| `BaseStorage`     | Abstract parent — shared logic + contracts | `name`, `errorPrefix`                                                |
+| `DatabaseStorage` | Concrete — PostgreSQL persistence          | `db` (Drizzle instance)                                              |
+| `InMemoryStorage` | Concrete — in-memory persistence           | `childrenStore`, `modulesStore`, `progressStore`, auto-increment IDs |
+
 
 A class is a template. It does not hold real data until you **instantiate** it
 (see Objects below).
@@ -181,7 +185,7 @@ export const storage = createStorage();
 - `new DatabaseStorage(db)` creates one **object** of type `DatabaseStorage`.
 - That object is assigned to `storage` and used throughout the application.
 - You could equally write `new InMemoryStorage()` to create an object of the
-  other class.
+other class.
 
 Every time you call a method on `storage` — for example
 `storage.getChildren(userId)` in `routes.ts` — you are calling a method on this
@@ -223,11 +227,14 @@ That substitutability is polymorphism.
 
 ## Quick Reference Table
 
-| OOP Concept | Where in `server/storage.ts` | Line(s) |
-|---|---|---|
-| **Abstraction** | `IStorage` interface | 40-54 |
+
+| OOP Concept       | Where in `server/storage.ts`                                                                                                   | Line(s)                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| **Abstraction**   | `IStorage` interface                                                                                                           | 40-54                          |
 | **Encapsulation** | `private errorPrefix`, `private db`, `private childrenStore/...`, `protected formatError()`, `protected buildWeeklyActivity()` | 64, 114, 267-272, 70-72, 74-94 |
-| **Inheritance** | `BaseStorage` abstract class; `DatabaseStorage extends BaseStorage`; `InMemoryStorage extends BaseStorage` | 63-106, 113, 266 |
-| **Class** | `BaseStorage`, `DatabaseStorage`, `InMemoryStorage` | 63, 113, 266 |
-| **Object** | `new DatabaseStorage(db)` inside `createStorage()` | 434 |
-| **Polymorphism** | `createStorage(): IStorage` — callers use the interface, not the class | 433-435 |
+| **Inheritance**   | `BaseStorage` abstract class; `DatabaseStorage extends BaseStorage`; `InMemoryStorage extends BaseStorage`                     | 63-106, 113, 266               |
+| **Class**         | `BaseStorage`, `DatabaseStorage`, `InMemoryStorage`                                                                            | 63, 113, 266                   |
+| **Object**        | `new DatabaseStorage(db)` inside `createStorage()`                                                                             | 434                            |
+| **Polymorphism**  | `createStorage(): IStorage` — callers use the interface, not the class                                                         | 433-435                        |
+
+

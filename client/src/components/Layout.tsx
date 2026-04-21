@@ -2,10 +2,11 @@ import { ReactNode } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useHomePath } from "@/hooks/use-home-path";
-import { GraduationCap, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { LogOut, Settings, LayoutDashboard } from "lucide-react";
 import type { AppRole } from "@shared/models/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandMark } from "@/components/BrandMark";
 
 function roleLabel(role: AppRole | undefined): string | null {
   if (!role) return null;
@@ -26,9 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href={homePath} className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/20">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
+            <BrandMark />
             <span className="font-display text-2xl font-bold tracking-wide">TotsLearn</span>
           </Link>
 

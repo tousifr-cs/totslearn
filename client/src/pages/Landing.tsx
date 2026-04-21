@@ -18,10 +18,21 @@ import {
   Star,
   Quote,
 } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useHomePath } from "@/hooks/use-home-path";
 import { homePathForRole } from "@/lib/homeRoutes";
 import type { AppRole } from "@shared/models/auth";
@@ -107,15 +118,36 @@ export default function Landing() {
   const { demoLogin, isDemoLoggingIn, isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const dashboardPath = useHomePath();
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState<string | null>(null);
   const { data: demoMode } = useQuery({
     queryKey: ["/api/auth/demo-mode"],
     queryFn: fetchDemoMode,
     staleTime: Infinity,
   });
 
-  const tryDemo = async (role: AppRole) => {
-    await demoLogin(role);
+  const tryDemo = async (role: AppRole, password?: string) => {
+    await demoLogin(role, password);
     setLocation(homePathForRole(role));
+  };
+
+  const openAdminDemo = () => {
+    setAdminPassword("");
+    setAdminError(null);
+    setAdminOpen(true);
+  };
+
+  const submitAdminDemo = async (e: FormEvent) => {
+    e.preventDefault();
+    setAdminError(null);
+    try {
+      await tryDemo("admin", adminPassword);
+      setAdminOpen(false);
+      setAdminPassword("");
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : "Sign-in failed");
+    }
   };
 
   const DemoActions = () =>
@@ -150,7 +182,7 @@ export default function Landing() {
             variant="outline"
             className="rounded-full font-bold text-base gap-2 border-2 border-border bg-card/80"
             disabled={isDemoLoggingIn}
-            onClick={() => tryDemo("admin")}
+            onClick={openAdminDemo}
           >
             <ShieldCheck className="w-5 h-5" />
             Admin
@@ -171,6 +203,58 @@ export default function Landing() {
 
   return (
     <Layout>
+      <>
+      <Dialog
+        open={adminOpen}
+        onOpenChange={(open) => {
+          setAdminOpen(open);
+          if (!open) {
+            setAdminPassword("");
+            setAdminError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={submitAdminDemo}>
+            <DialogHeader>
+              <DialogTitle>Admin demo access</DialogTitle>
+              <DialogDescription>
+                Enter the admin demo password to continue.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 py-4">
+              <Label htmlFor="admin-demo-password">Password</Label>
+              <Input
+                id="admin-demo-password"
+                type="password"
+                autoComplete="current-password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                disabled={isDemoLoggingIn}
+              />
+              {adminError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {adminError}
+                </p>
+              ) : null}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAdminOpen(false)}
+                disabled={isDemoLoggingIn}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isDemoLoggingIn}>
+                {isDemoLoggingIn ? "Signing in…" : "Continue"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col gap-20 lg:gap-28 pb-16">
         {isAuthenticated && user && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-border/80 bg-card/90 px-4 py-3 shadow-sm">
@@ -419,6 +503,7 @@ export default function Landing() {
           </div>
         </section>
       </div>
+      </>
     </Layout>
   );
 }

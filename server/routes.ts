@@ -43,6 +43,13 @@ const DEFAULT_MODULES: InsertModule[] = [
     contentUrl: "https://www.youtube.com/embed/75p-N9YKqNo",
   },
   {
+    title: "Letter Sounds",
+    description:
+      "Hear how each letter sounds with simple words, then play a matching game for the first sound.",
+    type: "game",
+    difficultyLevel: 1,
+  },
+  {
     title: "Shape Matcher",
     description: "Drag the shapes to their matching friends!",
     type: "game",
@@ -112,6 +119,18 @@ const DEFAULT_MODULES: InsertModule[] = [
     title: "Number Order",
     description: "Tap 1, 2, 3, 4, 5 in order!",
     type: "game",
+    difficultyLevel: 1,
+  },
+  {
+    title: "Loud or Quiet",
+    description: "Listen to two beeps — which one was louder?",
+    type: "audio",
+    difficultyLevel: 1,
+  },
+  {
+    title: "High or Low",
+    description: "Listen to two beeps — which one sounded higher?",
+    type: "audio",
     difficultyLevel: 1,
   },
 ];
@@ -281,6 +300,7 @@ async function setupLocalAuth(app: Express) {
   });
 
   const demoRoleSchema = z.enum(["parent", "admin", "child"]);
+  const adminDemoPassword = process.env.ADMIN_DEMO_PASSWORD ?? "1234";
 
   app.post("/api/auth/demo-login", async (req, res) => {
     const parsed = demoRoleSchema.safeParse(req.body?.role);
@@ -288,6 +308,12 @@ async function setupLocalAuth(app: Express) {
       return res.status(400).json({ message: "Invalid role" });
     }
     const role = parsed.data;
+    if (role === "admin") {
+      const password = req.body?.password;
+      if (typeof password !== "string" || password !== adminDemoPassword) {
+        return res.status(401).json({ message: "Invalid admin password" });
+      }
+    }
     let childId: string | undefined;
     if (role === "child") {
       try {

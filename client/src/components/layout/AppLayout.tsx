@@ -3,7 +3,8 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useHomePath } from "@/hooks/use-home-path";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -18,11 +19,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur-md shadow-sm">
         <div className="container mx-auto h-16 px-4 flex items-center justify-between">
           <Link href={homePath} className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-            <div className="bg-primary text-white p-1.5 rounded-lg shadow-sm">
-              <GraduationCap className="h-6 w-6" />
-            </div>
+            <BrandMark className="h-9 w-9" />
             <span className="font-outfit font-bold text-xl tracking-tight hidden sm:inline-block text-slate-800">
-              KinderLearn
+              TotsLearn
             </span>
           </Link>
 

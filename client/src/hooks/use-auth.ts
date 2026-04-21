@@ -21,12 +21,19 @@ async function logout(): Promise<void> {
   window.location.href = "/api/logout";
 }
 
-async function demoLogin(role: AppRole): Promise<AuthUser> {
+async function demoLoginRequest(
+  role: AppRole,
+  password?: string,
+): Promise<AuthUser> {
+  const body: { role: AppRole; password?: string } = { role };
+  if (role === "admin") {
+    body.password = password ?? "";
+  }
   const response = await fetch("/api/auth/demo-login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ role }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -52,7 +59,13 @@ export function useAuth() {
   });
 
   const demoLoginMutation = useMutation({
-    mutationFn: demoLogin,
+    mutationFn: ({
+      role,
+      password,
+    }: {
+      role: AppRole;
+      password?: string;
+    }) => demoLoginRequest(role, password),
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/auth/user"], data);
     },
@@ -64,7 +77,8 @@ export function useAuth() {
     isAuthenticated: !!user,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
-    demoLogin: demoLoginMutation.mutateAsync,
+    demoLogin: (role: AppRole, password?: string) =>
+      demoLoginMutation.mutateAsync({ role, password }),
     isDemoLoggingIn: demoLoginMutation.isPending,
   };
 }
